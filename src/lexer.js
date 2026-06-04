@@ -23,7 +23,19 @@ export const TokenType = {
   SLASH: "SLASH", // /
   LPAREN: "LPAREN", // (
   RPAREN: "RPAREN", // )
+  // --- new in Step 2 (variables) ---
+  IDENTIFIER: "IDENTIFIER", // a name like x, total, my_var
+  LET: "LET", // the keyword "let"
+  EQUALS: "EQUALS", // =
+  SEMICOLON: "SEMICOLON", // ;  (separates statements)
   EOF: "EOF", // marks the end of input
+};
+
+// Words that look like identifiers but are actually reserved by the language.
+// When we scan a name we check this table; "let" becomes a LET token, while
+// "x" stays an IDENTIFIER. This is the standard way languages handle keywords.
+const KEYWORDS = {
+  let: TokenType.LET,
 };
 
 // A token is just a small object: what kind it is, and (for numbers) its value.
@@ -35,6 +47,18 @@ function makeToken(type, value, pos) {
 // Helper: is this character a digit 0-9?
 function isDigit(ch) {
   return ch >= "0" && ch <= "9";
+}
+
+// Can this character START an identifier? Letters or underscore (not digits,
+// so we never confuse "123" for a name).
+function isIdentStart(ch) {
+  return (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || ch === "_";
+}
+
+// Can this character CONTINUE an identifier? Same as above, plus digits — so
+// "my_var2" is one name.
+function isIdentPart(ch) {
+  return isIdentStart(ch) || isDigit(ch);
 }
 
 // The main function. Walk the string one character at a time and emit tokens.
@@ -59,6 +83,8 @@ export function tokenize(source) {
     if (ch === "/") { tokens.push(makeToken(TokenType.SLASH, "/", i)); i++; continue; }
     if (ch === "(") { tokens.push(makeToken(TokenType.LPAREN, "(", i)); i++; continue; }
     if (ch === ")") { tokens.push(makeToken(TokenType.RPAREN, ")", i)); i++; continue; }
+    if (ch === "=") { tokens.push(makeToken(TokenType.EQUALS, "=", i)); i++; continue; }
+    if (ch === ";") { tokens.push(makeToken(TokenType.SEMICOLON, ";", i)); i++; continue; }
 
     // 3. Numbers. A number is one-or-more digits, optionally with a decimal
     //    point and more digits (e.g. 12, 3.14). Because a number spans several
@@ -78,7 +104,26 @@ export function tokenize(source) {
       continue;
     }
 
-    // 4. Anything else is a character we don't recognize.
+    // 4. Identifiers and keywords. Like numbers, a name spans several
+    //    characters, so we keep advancing while we see identifier characters.
+    //    Then we check the keyword table: "let" is special, anything else is
+    //    a plain variable name.
+    if (isIdentStart(ch)) {
+      const start = i;
+      while (i < source.length && isIdentPart(source[i])) {
+        i++;
+      }
+      const text = source.slice(start, i);
+      const keywordType = KEYWORDS[text]; // undefined if it's not a keyword
+      if (keywordType) {
+        tokens.push(makeToken(keywordType, text, start));
+      } else {
+        tokens.push(makeToken(TokenType.IDENTIFIER, text, start));
+      }
+      continue;
+    }
+
+    // 5. Anything else is a character we don't recognize.
     throw new Error(`Lexer error: unexpected character "${ch}" at position ${i}`);
   }
 
