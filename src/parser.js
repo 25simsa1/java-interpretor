@@ -59,6 +59,18 @@ function identifierNode(name) {
 function gradNode(target, variable) {
   return { type: "Grad", target, variable };
 }
+// `name = value` — reassign an existing variable (used for parameter updates).
+function assignNode(name, value) {
+  return { type: "Assign", name, value };
+}
+// `repeat count { body }` — run a block of statements `count` times.
+function repeatNode(count, body) {
+  return { type: "Repeat", count, body };
+}
+// `print(expr)` — evaluate and display a value (handy for watching training).
+function printNode(expr) {
+  return { type: "Print", expr };
+}
 function binaryNode(op, left, right) {
   return { type: "Binary", op, left, right }; // op is "+", "-", "*", or "/"
 }
@@ -157,6 +169,16 @@ export function parse(tokens) {
       return gradNode(target, variable);
     }
 
+    // print(expr) — another built-in call, shaped like grad but with one arg.
+    // It's an expression so it can appear anywhere a value can.
+    if (tok.type === TokenType.PRINT) {
+      advance(); // consume "print"
+      expect(TokenType.LPAREN, "expected '(' after 'print'");
+      const expr = expression();
+      expect(TokenType.RPAREN, "expected ')' to close print(...)");
+      return printNode(expr);
+    }
+
     // Unary minus, e.g. "-5" or "-(2 + 3)". It recurses into factor() so that
     // "-2 * 3" parses as "(-2) * 3", not "-(2 * 3)" — negation binds tightly.
     if (tok.type === TokenType.MINUS) {
@@ -176,10 +198,13 @@ export function parse(tokens) {
     throw new Error(`Parse error: unexpected ${tok.type} at position ${tok.pos}`);
   }
 
-  // statement -> "let" IDENTIFIER "=" expression | expression
-  // A statement is one "instruction". For now there are two kinds: a `let`
-  // binding, or a bare expression (whose value we'll print in the REPL).
+  // statement -> "let" IDENTIFIER "=" expression
+  //            |  IDENTIFIER "=" expression           (reassignment)
+  //            |  "repeat" expression "{" statement* "}"
+  //            |  expression
+  // A statement is one "instruction".
   function statement() {
+    // let NAME = value  — a new binding.
     if (peek().type === TokenType.LET) {
       advance(); // consume "let"
       const name = expect(TokenType.IDENTIFIER, "expected a variable name after 'let'").value;
@@ -187,25 +212,52 @@ export function parse(tokens) {
       const value = expression();
       return letNode(name, value);
     }
+
+    // repeat COUNT { ... }  — a loop. The count is any expression.
+    if (peek().type === TokenType.REPEAT) {
+      advance(); // consume "repeat"
+      const count = expression();
+      expect(TokenType.LBRACE, "expected '{' to start the repeat block");
+      const body = statementList(TokenType.RBRACE);
+      expect(TokenType.RBRACE, "expected '}' to end the repeat block");
+      return repeatNode(count, body);
+    }
+
+    // NAME = value  — reassignment. We distinguish it from a bare expression
+    // that merely starts with a name (like `x * 2`) by peeking one token ahead:
+    // an identifier immediately followed by '=' means assignment.
+    if (peek().type === TokenType.IDENTIFIER && tokens[pos + 1] && tokens[pos + 1].type === TokenType.EQUALS) {
+      const name = advance().value; // the identifier
+      advance(); // the '='
+      const value = expression();
+      return assignNode(name, value);
+    }
+
     // Otherwise it's just an expression.
     return expression();
   }
 
-  // program -> statement (";" statement)* ";"? EOF
-  // Parse statements separated by semicolons. A trailing semicolon is fine,
-  // and so is an empty program. This is the new top level: a program is a
-  // *list* of statements rather than a single expression.
-  const statements = [];
-  while (peek().type !== TokenType.EOF) {
-    statements.push(statement());
-    // Statements are separated by ';'. If the next token isn't ';' we must be
-    // at the end — otherwise there's leftover junk like "1 2".
-    if (peek().type === TokenType.SEMICOLON) {
-      advance();
-    } else if (peek().type !== TokenType.EOF) {
-      throw new Error(`Parse error: expected ';' or end of input but got ${peek().type} at position ${peek().pos}`);
+  // Parse a run of statements until we hit `endType` (either RBRACE for a block
+  // or EOF for the whole program). Semicolons between statements are optional —
+  // a newline-separated script and a `a; b; c` one-liner both work — because a
+  // block-terminating `}` already tells us where each statement ends.
+  function statementList(endType) {
+    const statements = [];
+    while (peek().type !== endType && peek().type !== TokenType.EOF) {
+      statements.push(statement());
+      // Eat a separating ';' if present; otherwise just continue.
+      if (peek().type === TokenType.SEMICOLON) advance();
     }
+    return statements;
   }
 
-  return programNode(statements);
+  // program -> statement* EOF  (the new top level)
+  const program = programNode(statementList(TokenType.EOF));
+
+  // After the program there should be nothing but EOF left.
+  if (peek().type !== TokenType.EOF) {
+    throw new Error(`Parse error: unexpected ${peek().type} at position ${peek().pos}`);
+  }
+
+  return program;
 }
