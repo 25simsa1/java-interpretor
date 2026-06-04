@@ -16,14 +16,15 @@
 import readline from "node:readline";
 import { tokenize } from "./lexer.js";
 import { parse } from "./parser.js";
-import { evaluate } from "./interpreter.js";
+import { evaluate, createEnv } from "./interpreter.js";
 
-// Run a single line of source through all three stages. Errors from any stage
-// are caught here so one bad line doesn't crash the whole REPL.
-function run(source) {
+// Run a source string through all three stages, using the given environment so
+// variables defined earlier stay available. Errors from any stage propagate to
+// the caller, which decides whether to keep going (REPL) or exit (one-shot).
+function run(source, env) {
   const tokens = tokenize(source);
   const ast = parse(tokens);
-  return evaluate(ast);
+  return evaluate(ast, env);
 }
 
 function main() {
@@ -34,7 +35,8 @@ function main() {
   if (args.length > 0) {
     const source = args.join(" ");
     try {
-      console.log(run(source));
+      // One-shot mode gets its own throwaway environment.
+      console.log(run(source, createEnv()));
     } catch (err) {
       console.error(err.message);
       process.exit(1);
@@ -43,7 +45,10 @@ function main() {
   }
 
   // No arguments -> start the interactive REPL.
-  console.log("tinylang v0.1 — arithmetic. Type an expression, or Ctrl+C to quit.");
+  console.log("tinylang v0.2 — arithmetic + variables. Type code, or Ctrl+C to quit.");
+  // One environment shared across every line, so `let x = 5` on one line is
+  // still in scope when you type `x * x` on the next.
+  const env = createEnv();
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: "> " });
   rl.prompt();
 
@@ -51,7 +56,7 @@ function main() {
     const trimmed = line.trim();
     if (trimmed.length > 0) {
       try {
-        console.log(run(trimmed));
+        console.log(run(trimmed, env));
       } catch (err) {
         // Show the error but keep the REPL alive.
         console.error(err.message);
