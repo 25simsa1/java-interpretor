@@ -25,19 +25,22 @@ Source text flows through three stages:
 ## Usage
 
 ```bash
-# Evaluate one expression
-node src/index.js "12 + 3 * 4"      # -> 24
-node src/index.js "(1 + 2) * -3"    # -> -9
+# Evaluate one expression (or several, separated by ;)
+node src/index.js "12 + 3 * 4"          # -> 24
+node src/index.js "(1 + 2) * -3"        # -> -9
+node src/index.js "let x = 5; x * x"    # -> 25
 
-# Or start the interactive REPL
+# Or start the interactive REPL — variables persist between lines
 node src/index.js
-> 2 + 2
-4
+> let x = 10
+10
+> x * 2
+20
 ```
 
 ## Roadmap
 
 - [x] **Step 1** — arithmetic: `+ - * /`, parentheses, unary minus
-- [ ] **Step 2** — variables and `let`
+- [x] **Step 2** — variables and `let`
 - [ ] **Step 3** — reverse-mode automatic differentiation (`grad`)
 - [ ] **Step 4** — train a tiny linear-regression model in the language
