@@ -2,37 +2,33 @@
 // THE EVALUATOR (a.k.a. the interpreter, tree-walker)
 // =============================================================================
 //
-// This is the part that actually computes an answer. The parser handed us a
-// tree; we walk it from the bottom up. To evaluate a node we first evaluate
-// its children, then combine them.
+// Walks the AST the parser produced and computes a result, from the bottom up.
 //
-//        +            evaluate(+) =
-//       / \             evaluate(12) + evaluate(*)
-//     12   *          = 12 + (evaluate(3) * evaluate(4))
-//         / \         = 12 + 12
-//        3   4        = 24
+// BIG CHANGE IN STEP 3: every value flowing through the interpreter is now a
+// `Value` object from value.js, not a raw JavaScript number. Why? Because doing
+// arithmetic on Values automatically records the computation graph, which is
+// what lets us compute gradients later. A literal `5` becomes value(5); `a + b`
+// becomes add(a, b); and so on. The numbers come out identical — we've just
+// also recorded *how* we got them.
 //
-// This style is called a "tree-walking interpreter". It's the most direct way
-// to run a language, and it's exactly how the earliest versions of languages
-// like Ruby and Python worked.
-//
-// NEW IN STEP 2: variables. To remember that `x` is 5, we need somewhere to
-// store that binding. That place is the "environment" — just a Map from names
-// to values. Every evaluate() call now receives the environment so it can both
-// read variables (Identifier) and write them (Let).
+// The environment now maps variable names to Value objects. Because a `let`
+// stores the SAME Value object that later expressions reference, the graph
+// connects across statements — so by the time you call grad(f, x), the Value
+// for f still has a path back to the Value for x.
 // =============================================================================
 
-// Create a fresh, empty environment. The REPL keeps one of these alive across
-// lines so a `let` typed earlier is still visible later.
+import { value, add, sub, mul, div, neg } from "./value.js";
+
+// Create a fresh, empty environment. The REPL keeps one alive across lines so a
+// `let` typed earlier is still visible later.
 export function createEnv() {
-  return new Map(); // name (string) -> value (number)
+  return new Map(); // name (string) -> Value
 }
 
 export function evaluate(node, env = createEnv()) {
   switch (node.type) {
-    // A whole program: run each statement in order, sharing one environment so
-    // a `let` in an early statement is visible to later ones. The program's
-    // value is the value of its LAST statement (handy for the REPL).
+    // A whole program: run each statement in order, sharing one environment.
+    // The program's value is the value of its LAST statement.
     case "Program": {
       let result = null;
       for (const statement of node.statements) {
@@ -41,17 +37,17 @@ export function evaluate(node, env = createEnv()) {
       return result;
     }
 
-    // `let name = value`: evaluate the right-hand side, then record the binding
-    // in the environment. We return the value too, so typing `let x = 5` in the
-    // REPL echoes 5.
+    // `let name = value`: evaluate the right-hand side to a Value, then record
+    // the binding. Storing the Value object (not just its number) is what keeps
+    // the computation graph intact for later grad() calls.
     case "Let": {
-      const value = evaluate(node.value, env);
-      env.set(node.name, value);
-      return value;
+      const v = evaluate(node.value, env);
+      env.set(node.name, v);
+      return v;
     }
 
-    // A variable reference: look its name up in the environment. If it was
-    // never defined, that's a runtime error rather than a silent `undefined`.
+    // A variable reference: hand back the SAME Value object stored under this
+    // name, so it stays wired into the graph.
     case "Identifier": {
       if (!env.has(node.name)) {
         throw new Error(`Runtime error: undefined variable "${node.name}"`);
@@ -59,34 +55,41 @@ export function evaluate(node, env = createEnv()) {
       return env.get(node.name);
     }
 
-    // A literal number evaluates to itself. This is the base case that stops
-    // the recursion.
+    // A literal number becomes a leaf Value — the starting points of the graph.
     case "Number":
-      return node.value;
+      return value(node.value);
 
-    // Unary minus: evaluate the operand, then negate it.
+    // Unary minus, via the graph-aware neg() so the gradient flows through it.
     case "Unary": {
-      const value = evaluate(node.operand, env);
-      if (node.op === "-") return -value;
+      const operand = evaluate(node.operand, env);
+      if (node.op === "-") return neg(operand);
       throw new Error(`Runtime error: unknown unary operator "${node.op}"`);
     }
 
-    // A binary operation: evaluate BOTH sides first, then apply the operator.
-    // Note the recursion — left and right may themselves be whole subtrees, and
-    // we pass `env` down so any variables inside them resolve correctly.
+    // A binary operation: evaluate both sides to Values, then combine them with
+    // the graph-building ops. (Division-by-zero is checked inside div().)
     case "Binary": {
       const left = evaluate(node.left, env);
       const right = evaluate(node.right, env);
       switch (node.op) {
-        case "+": return left + right;
-        case "-": return left - right;
-        case "*": return left * right;
-        case "/":
-          if (right === 0) throw new Error("Runtime error: division by zero");
-          return left / right;
+        case "+": return add(left, right);
+        case "-": return sub(left, right);
+        case "*": return mul(left, right);
+        case "/": return div(left, right);
         default:
           throw new Error(`Runtime error: unknown operator "${node.op}"`);
       }
+    }
+
+    // grad(target, variable): the payoff. Evaluate the target expression (which
+    // builds/reuses a graph), run the backward pass from it, then read off the
+    // gradient that landed on the variable's Value. We return it as a new leaf
+    // Value so it can be used in further arithmetic like any other number.
+    case "Grad": {
+      const target = evaluate(node.target, env);
+      const variable = evaluate(node.variable, env);
+      target.backward(); // fills in .grad on every Value feeding into target
+      return value(variable.grad);
     }
 
     default:

@@ -27,6 +27,12 @@ function run(source, env) {
   return evaluate(ast, env);
 }
 
+// The evaluator returns Value objects (or null for an empty program). Pull out
+// the plain number for display.
+function format(result) {
+  return result === null ? "" : result.data;
+}
+
 function main() {
   // Everything after "node src/index.js" — if the user passed an expression,
   // evaluate it once and exit.
@@ -36,7 +42,7 @@ function main() {
     const source = args.join(" ");
     try {
       // One-shot mode gets its own throwaway environment.
-      console.log(run(source, createEnv()));
+      console.log(format(run(source, createEnv())));
     } catch (err) {
       console.error(err.message);
       process.exit(1);
@@ -45,7 +51,7 @@ function main() {
   }
 
   // No arguments -> start the interactive REPL.
-  console.log("tinylang v0.2 — arithmetic + variables. Type code, or Ctrl+C to quit.");
+  console.log("tinylang v0.3 — arithmetic + variables + grad(). Type code, or Ctrl+C to quit.");
   // One environment shared across every line, so `let x = 5` on one line is
   // still in scope when you type `x * x` on the next.
   const env = createEnv();
@@ -56,7 +62,7 @@ function main() {
     const trimmed = line.trim();
     if (trimmed.length > 0) {
       try {
-        console.log(run(trimmed, env));
+        console.log(format(run(trimmed, env)));
       } catch (err) {
         // Show the error but keep the REPL alive.
         console.error(err.message);
