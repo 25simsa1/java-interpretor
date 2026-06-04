@@ -28,6 +28,9 @@ export const TokenType = {
   LET: "LET", // the keyword "let"
   EQUALS: "EQUALS", // =
   SEMICOLON: "SEMICOLON", // ;  (separates statements)
+  // --- new in Step 3 (autodiff) ---
+  GRAD: "GRAD", // the keyword "grad"
+  COMMA: "COMMA", // ,  (separates grad's two arguments)
   EOF: "EOF", // marks the end of input
 };
 
@@ -36,6 +39,7 @@ export const TokenType = {
 // "x" stays an IDENTIFIER. This is the standard way languages handle keywords.
 const KEYWORDS = {
   let: TokenType.LET,
+  grad: TokenType.GRAD,
 };
 
 // A token is just a small object: what kind it is, and (for numbers) its value.
@@ -85,6 +89,7 @@ export function tokenize(source) {
     if (ch === ")") { tokens.push(makeToken(TokenType.RPAREN, ")", i)); i++; continue; }
     if (ch === "=") { tokens.push(makeToken(TokenType.EQUALS, "=", i)); i++; continue; }
     if (ch === ";") { tokens.push(makeToken(TokenType.SEMICOLON, ";", i)); i++; continue; }
+    if (ch === ",") { tokens.push(makeToken(TokenType.COMMA, ",", i)); i++; continue; }
 
     // 3. Numbers. A number is one-or-more digits, optionally with a decimal
     //    point and more digits (e.g. 12, 3.14). Because a number spans several
