@@ -30,6 +30,10 @@ node src/index.js "12 + 3 * 4"          # -> 24
 node src/index.js "(1 + 2) * -3"        # -> -9
 node src/index.js "let x = 5; x * x"    # -> 25
 
+# Automatic differentiation: grad(target, variable)
+node src/index.js "let x = 2; let y = 3; let f = x*x*y + y; grad(f, x)"   # -> 12 (df/dx)
+node src/index.js "let x = 2; let y = 3; let f = x*x*y + y; grad(f, y)"   # -> 5  (df/dy)
+
 # Or start the interactive REPL — variables persist between lines
 node src/index.js
 > let x = 10
@@ -38,9 +42,17 @@ node src/index.js
 20
 ```
 
+## How `grad` works
+
+`src/value.js` is a tiny reverse-mode autodiff engine. Numbers are wrapped in
+`Value` objects that record how they were computed (the "computation graph").
+`grad(f, x)` runs a backward pass over that graph, applying the chain rule, to
+get the derivative of `f` with respect to `x` — exactly the mechanism PyTorch
+uses to train neural networks.
+
 ## Roadmap
 
 - [x] **Step 1** — arithmetic: `+ - * /`, parentheses, unary minus
 - [x] **Step 2** — variables and `let`
-- [ ] **Step 3** — reverse-mode automatic differentiation (`grad`)
+- [x] **Step 3** — reverse-mode automatic differentiation (`grad`)
 - [ ] **Step 4** — train a tiny linear-regression model in the language
