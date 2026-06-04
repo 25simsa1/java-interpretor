@@ -34,6 +34,9 @@ node src/index.js "let x = 5; x * x"    # -> 25
 node src/index.js "let x = 2; let y = 3; let f = x*x*y + y; grad(f, x)"   # -> 12 (df/dx)
 node src/index.js "let x = 2; let y = 3; let f = x*x*y + y; grad(f, y)"   # -> 5  (df/dy)
 
+# Run a script file — e.g. train a model with gradient descent
+node src/index.js examples/linear_regression.tl   # learns y = 2x + 1 -> prints ~2 and ~1
+
 # Or start the interactive REPL — variables persist between lines
 node src/index.js
 > let x = 10
@@ -41,6 +44,17 @@ node src/index.js
 > x * 2
 20
 ```
+
+## Machine learning, in the language itself
+
+`examples/linear_regression.tl` trains a line to fit data using nothing but the
+features above. Each step computes the error, calls `grad(loss, w)` to find the
+downhill direction, and nudges the weights — the exact gradient-descent loop
+that trains real neural networks. Starting from `w = 0, b = 0`, it recovers the
+true `w = 2, b = 1`. The language now does end-to-end machine learning.
+
+Language features used: `let`, reassignment (`w = ...`, which detaches from the
+autodiff graph like PyTorch's `no_grad`), `repeat` loops, `grad`, and `print`.
 
 ## How `grad` works
 
@@ -55,4 +69,4 @@ uses to train neural networks.
 - [x] **Step 1** — arithmetic: `+ - * /`, parentheses, unary minus
 - [x] **Step 2** — variables and `let`
 - [x] **Step 3** — reverse-mode automatic differentiation (`grad`)
-- [ ] **Step 4** — train a tiny linear-regression model in the language
+- [x] **Step 4** — train a tiny linear-regression model in the language
