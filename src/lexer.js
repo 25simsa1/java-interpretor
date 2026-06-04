@@ -31,6 +31,11 @@ export const TokenType = {
   // --- new in Step 3 (autodiff) ---
   GRAD: "GRAD", // the keyword "grad"
   COMMA: "COMMA", // ,  (separates grad's two arguments)
+  // --- new in Step 4 (training) ---
+  REPEAT: "REPEAT", // the keyword "repeat"
+  PRINT: "PRINT", // the keyword "print"
+  LBRACE: "LBRACE", // {  (starts a repeat block)
+  RBRACE: "RBRACE", // }  (ends a repeat block)
   EOF: "EOF", // marks the end of input
 };
 
@@ -40,6 +45,8 @@ export const TokenType = {
 const KEYWORDS = {
   let: TokenType.LET,
   grad: TokenType.GRAD,
+  repeat: TokenType.REPEAT,
+  print: TokenType.PRINT,
 };
 
 // A token is just a small object: what kind it is, and (for numbers) its value.
@@ -84,12 +91,24 @@ export function tokenize(source) {
     if (ch === "+") { tokens.push(makeToken(TokenType.PLUS, "+", i)); i++; continue; }
     if (ch === "-") { tokens.push(makeToken(TokenType.MINUS, "-", i)); i++; continue; }
     if (ch === "*") { tokens.push(makeToken(TokenType.STAR, "*", i)); i++; continue; }
-    if (ch === "/") { tokens.push(makeToken(TokenType.SLASH, "/", i)); i++; continue; }
+    if (ch === "/") {
+      // "//" starts a line comment: skip everything to the end of the line.
+      // A single "/" is still the division operator.
+      if (source[i + 1] === "/") {
+        while (i < source.length && source[i] !== "\n") i++;
+        continue;
+      }
+      tokens.push(makeToken(TokenType.SLASH, "/", i));
+      i++;
+      continue;
+    }
     if (ch === "(") { tokens.push(makeToken(TokenType.LPAREN, "(", i)); i++; continue; }
     if (ch === ")") { tokens.push(makeToken(TokenType.RPAREN, ")", i)); i++; continue; }
     if (ch === "=") { tokens.push(makeToken(TokenType.EQUALS, "=", i)); i++; continue; }
     if (ch === ";") { tokens.push(makeToken(TokenType.SEMICOLON, ";", i)); i++; continue; }
     if (ch === ",") { tokens.push(makeToken(TokenType.COMMA, ",", i)); i++; continue; }
+    if (ch === "{") { tokens.push(makeToken(TokenType.LBRACE, "{", i)); i++; continue; }
+    if (ch === "}") { tokens.push(makeToken(TokenType.RBRACE, "}", i)); i++; continue; }
 
     // 3. Numbers. A number is one-or-more digits, optionally with a decimal
     //    point and more digits (e.g. 12, 3.14). Because a number spans several
