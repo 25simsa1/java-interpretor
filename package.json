@@ -1,0 +1,14 @@
+{
+  "name": "tinylang",
+  "version": "0.1.0",
+  "description": "A small interpreted language built from scratch in JavaScript",
+  "type": "module",
+  "bin": {
+    "tinylang": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "repl": "node src/index.js"
+  },
+  "license": "MIT"
+}
