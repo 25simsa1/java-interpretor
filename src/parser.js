@@ -25,7 +25,8 @@
 //   statement   ->  "let" IDENTIFIER "=" expression | expression
 //   expression  ->  term  (("+" | "-") term)*             <- lowest precedence
 //   term        ->  factor (("*" | "/") factor)*
-//   factor      ->  NUMBER | IDENTIFIER | "(" expression ")" | "-" factor   <- highest
+//   factor      ->  NUMBER | IDENTIFIER | "grad" "(" expression "," expression ")"
+//                 | "(" expression ")" | "-" factor              <- highest
 //
 // Read the expression/term/factor part top-to-bottom = loosest-to-tightest
 // binding. The program/statement rules on top are the new Step 2 structure:
@@ -52,6 +53,11 @@ function letNode(name, value) {
 // A reference to a variable by name, e.g. the `x` in `x * x`.
 function identifierNode(name) {
   return { type: "Identifier", name };
+}
+// `grad(target, variable)` — asks for the derivative of `target` with respect
+// to `variable`, e.g. grad(f, x).
+function gradNode(target, variable) {
+  return { type: "Grad", target, variable };
 }
 function binaryNode(op, left, right) {
   return { type: "Binary", op, left, right }; // op is "+", "-", "*", or "/"
@@ -135,6 +141,20 @@ export function parse(tokens) {
     if (tok.type === TokenType.IDENTIFIER) {
       advance();
       return identifierNode(tok.value);
+    }
+
+    // grad(target, variable) — the only "function call" in the language so far,
+    // so we parse it as its own special form: keyword, '(', expression, ',',
+    // expression, ')'. Both arguments are full expressions, so grad(x*x, x)
+    // works just as well as grad(f, x).
+    if (tok.type === TokenType.GRAD) {
+      advance(); // consume "grad"
+      expect(TokenType.LPAREN, "expected '(' after 'grad'");
+      const target = expression();
+      expect(TokenType.COMMA, "expected ',' between grad's two arguments");
+      const variable = expression();
+      expect(TokenType.RPAREN, "expected ')' to close grad(...)");
+      return gradNode(target, variable);
     }
 
     // Unary minus, e.g. "-5" or "-(2 + 3)". It recurses into factor() so that
