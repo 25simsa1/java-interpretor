@@ -21,11 +21,15 @@
 // (like *) by the INNER ones. That ordering is exactly what makes * bind
 // tighter than +.
 //
-//   expression  ->  term  (("+" | "-") term)*       <- lowest precedence
+//   program     ->  statement (";" statement)* ";"?       <- whole input
+//   statement   ->  "let" IDENTIFIER "=" expression | expression
+//   expression  ->  term  (("+" | "-") term)*             <- lowest precedence
 //   term        ->  factor (("*" | "/") factor)*
-//   factor      ->  NUMBER | "(" expression ")" | "-" factor   <- highest
+//   factor      ->  NUMBER | IDENTIFIER | "(" expression ")" | "-" factor   <- highest
 //
-// Read that grammar top-to-bottom = loosest-to-tightest binding.
+// Read the expression/term/factor part top-to-bottom = loosest-to-tightest
+// binding. The program/statement rules on top are the new Step 2 structure:
+// the input is now a *list* of statements, not a single expression.
 // =============================================================================
 
 import { TokenType } from "./lexer.js";
@@ -36,6 +40,18 @@ import { TokenType } from "./lexer.js";
 
 function numberNode(value) {
   return { type: "Number", value };
+}
+// A whole program: a list of statements run top to bottom.
+function programNode(statements) {
+  return { type: "Program", statements };
+}
+// `let name = value` — binds a name to the result of an expression.
+function letNode(name, value) {
+  return { type: "Let", name, value };
+}
+// A reference to a variable by name, e.g. the `x` in `x * x`.
+function identifierNode(name) {
+  return { type: "Identifier", name };
 }
 function binaryNode(op, left, right) {
   return { type: "Binary", op, left, right }; // op is "+", "-", "*", or "/"
@@ -114,6 +130,13 @@ export function parse(tokens) {
       return numberNode(tok.value);
     }
 
+    // A variable reference, e.g. the `x` in `x * x`. The evaluator will look
+    // up its value at run time.
+    if (tok.type === TokenType.IDENTIFIER) {
+      advance();
+      return identifierNode(tok.value);
+    }
+
     // Unary minus, e.g. "-5" or "-(2 + 3)". It recurses into factor() so that
     // "-2 * 3" parses as "(-2) * 3", not "-(2 * 3)" — negation binds tightly.
     if (tok.type === TokenType.MINUS) {
@@ -133,14 +156,36 @@ export function parse(tokens) {
     throw new Error(`Parse error: unexpected ${tok.type} at position ${tok.pos}`);
   }
 
-  // Kick off parsing at the lowest-precedence rule...
-  const tree = expression();
-
-  // ...and make sure we consumed everything. Leftover tokens mean malformed
-  // input like "1 2" or "(1 + 2) 3".
-  if (peek().type !== TokenType.EOF) {
-    throw new Error(`Parse error: unexpected ${peek().type} at position ${peek().pos}`);
+  // statement -> "let" IDENTIFIER "=" expression | expression
+  // A statement is one "instruction". For now there are two kinds: a `let`
+  // binding, or a bare expression (whose value we'll print in the REPL).
+  function statement() {
+    if (peek().type === TokenType.LET) {
+      advance(); // consume "let"
+      const name = expect(TokenType.IDENTIFIER, "expected a variable name after 'let'").value;
+      expect(TokenType.EQUALS, "expected '=' after the variable name");
+      const value = expression();
+      return letNode(name, value);
+    }
+    // Otherwise it's just an expression.
+    return expression();
   }
 
-  return tree;
+  // program -> statement (";" statement)* ";"? EOF
+  // Parse statements separated by semicolons. A trailing semicolon is fine,
+  // and so is an empty program. This is the new top level: a program is a
+  // *list* of statements rather than a single expression.
+  const statements = [];
+  while (peek().type !== TokenType.EOF) {
+    statements.push(statement());
+    // Statements are separated by ';'. If the next token isn't ';' we must be
+    // at the end — otherwise there's leftover junk like "1 2".
+    if (peek().type === TokenType.SEMICOLON) {
+      advance();
+    } else if (peek().type !== TokenType.EOF) {
+      throw new Error(`Parse error: expected ';' or end of input but got ${peek().type} at position ${peek().pos}`);
+    }
+  }
+
+  return programNode(statements);
 }
