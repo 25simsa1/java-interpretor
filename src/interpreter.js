@@ -55,6 +55,48 @@ export function evaluate(node, env = createEnv()) {
       return env.get(node.name);
     }
 
+    // `name = value` — reassignment, used for parameter updates like
+    // `w = w - lr * gw`. The variable must already exist (use `let` to create).
+    //
+    // The crucial detail: we store a BRAND-NEW leaf Value holding just the
+    // resulting number, throwing away the graph that produced it. This is the
+    // equivalent of PyTorch's `.detach()` / `with no_grad()`. Without it, every
+    // training step would chain onto the previous one, the graph would grow
+    // forever, and gradients would try to flow back through the optimizer's own
+    // arithmetic. Detaching keeps each step's gradient about the model, not the
+    // update math.
+    case "Assign": {
+      if (!env.has(node.name)) {
+        throw new Error(`Runtime error: cannot assign to undefined variable "${node.name}" (use 'let' first)`);
+      }
+      const v = evaluate(node.value, env);
+      const fresh = value(v.data); // new leaf — detached from the graph
+      env.set(node.name, fresh);
+      return fresh;
+    }
+
+    // `repeat count { body }` — evaluate `count`, then run the body that many
+    // times, all sharing the same environment so updates accumulate. Returns
+    // the value of the body's last statement on the final pass.
+    case "Repeat": {
+      const times = Math.trunc(evaluate(node.count, env).data);
+      let result = null;
+      for (let n = 0; n < times; n++) {
+        for (const statement of node.body) {
+          result = evaluate(statement, env);
+        }
+      }
+      return result;
+    }
+
+    // `print(expr)` — evaluate, show the number, and return the Value so print
+    // can still be used inside a larger expression.
+    case "Print": {
+      const v = evaluate(node.expr, env);
+      console.log(v.data);
+      return v;
+    }
+
     // A literal number becomes a leaf Value — the starting points of the graph.
     case "Number":
       return value(node.value);

@@ -5,15 +5,17 @@
 //
 // Wires the three stages together:  text -> tokenize -> parse -> evaluate.
 //
-// Two ways to use it:
-//   1. One-shot:   node src/index.js "2 + 3 * 4"
-//   2. Interactive REPL (Read-Eval-Print-Loop):  node src/index.js
+// Three ways to use it:
+//   1. Run a script file:  node src/index.js examples/linear_regression.tl
+//   2. One-shot expr:      node src/index.js "2 + 3 * 4"
+//   3. Interactive REPL:   node src/index.js
 //
 // A REPL is the prompt you get in tools like the Python or Node shell: type an
 // expression, see its value, repeat.
 // =============================================================================
 
 import readline from "node:readline";
+import { existsSync, readFileSync } from "node:fs";
 import { tokenize } from "./lexer.js";
 import { parse } from "./parser.js";
 import { evaluate, createEnv } from "./interpreter.js";
@@ -39,9 +41,22 @@ function main() {
   const args = process.argv.slice(2);
 
   if (args.length > 0) {
+    // If the single argument names a file that exists, run it as a script. Its
+    // own print(...) statements produce the output, so we don't auto-print the
+    // final value here (that would be noise after a training loop).
+    if (args.length === 1 && existsSync(args[0])) {
+      try {
+        run(readFileSync(args[0], "utf8"), createEnv());
+      } catch (err) {
+        console.error(err.message);
+        process.exit(1);
+      }
+      return;
+    }
+
+    // Otherwise treat the arguments as a one-shot expression and print its value.
     const source = args.join(" ");
     try {
-      // One-shot mode gets its own throwaway environment.
       console.log(format(run(source, createEnv())));
     } catch (err) {
       console.error(err.message);
@@ -51,7 +66,7 @@ function main() {
   }
 
   // No arguments -> start the interactive REPL.
-  console.log("tinylang v0.3 — arithmetic + variables + grad(). Type code, or Ctrl+C to quit.");
+  console.log("tinylang v0.4 — arithmetic, variables, grad(), repeat, print. Type code, or Ctrl+C to quit.");
   // One environment shared across every line, so `let x = 5` on one line is
   // still in scope when you type `x * x` on the next.
   const env = createEnv();
