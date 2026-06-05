@@ -1,6 +1,6 @@
-// =============================================================================
-// THE LEXER  (a.k.a. tokenizer / scanner)
-// =============================================================================
+
+// The Lexer  (a.k.a. tokenizer / scanner)
+
 //
 // The lexer's job is the simplest of the three stages: turn a flat string of
 // source text into a list of "tokens" — the meaningful chunks of the language.
@@ -8,13 +8,13 @@
 //   input:  "12 + 3 * 4"
 //   output: [ NUMBER(12), PLUS, NUMBER(3), STAR, NUMBER(4), EOF ]
 //
-// It does NOT understand math or precedence — it just groups characters.
+// It does NOT understand math or precedence, it just groups characters.
 // Think of it like splitting an English sentence into words before you try to
 // understand the grammar.
-// =============================================================================
 
-// The kinds of tokens our language has *so far* (Step 1: arithmetic only).
-// We use plain strings as tags — easy to read when debugging.
+
+// The kinds of tokens this language has *so far* (Step 1: arithmetic only).
+// I use plain strings as tags, easy to read when debugging.
 export const TokenType = {
   NUMBER: "NUMBER",
   PLUS: "PLUS", // +
@@ -151,7 +151,7 @@ export function tokenize(source) {
     throw new Error(`Lexer error: unexpected character "${ch}" at position ${i}`);
   }
 
-  // Always finish with an EOF token. The parser relies on this sentinel so it
+  // I always finish with an EOF token. The parser relies on this sentinel so it
   // never has to check "did we run off the end of the array?" everywhere.
   tokens.push(makeToken(TokenType.EOF, null, i));
   return tokens;
