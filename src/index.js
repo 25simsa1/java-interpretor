@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-// =============================================================================
-// ENTRY POINT
-// =============================================================================
-//
+
 // Wires the three stages together:  text -> tokenize -> parse -> evaluate.
 //
 // Three ways to use it:
@@ -12,7 +9,7 @@
 //
 // A REPL is the prompt you get in tools like the Python or Node shell: type an
 // expression, see its value, repeat.
-// =============================================================================
+
 
 import readline from "node:readline";
 import { existsSync, readFileSync } from "node:fs";
@@ -36,12 +33,12 @@ function format(result) {
 }
 
 function main() {
-  // Everything after "node src/index.js" — if the user passed an expression,
+ // Everything after "node src/index.js" — if the user passed an expression,
   // evaluate it once and exit.
   const args = process.argv.slice(2);
 
   if (args.length > 0) {
-    // If the single argument names a file that exists, run it as a script. Its
+  // If the single argument names a file that exists, run it as a script. Its
     // own print(...) statements produce the output, so we don't auto-print the
     // final value here (that would be noise after a training loop).
     if (args.length === 1 && existsSync(args[0])) {
