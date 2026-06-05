@@ -1,11 +1,10 @@
-// =============================================================================
-// THE EVALUATOR (a.k.a. the interpreter, tree-walker)
-// =============================================================================
-//
+
+// The evaluator (a.k.a. the interpreter, tree-walker)
+
 // Walks the AST the parser produced and computes a result, from the bottom up.
-//
+
 // BIG CHANGE IN STEP 3: every value flowing through the interpreter is now a
-// `Value` object from value.js, not a raw JavaScript number. Why? Because doing
+//`Value` object from value.js, not a raw JavaScript number. Why? Because doing
 // arithmetic on Values automatically records the computation graph, which is
 // what lets us compute gradients later. A literal `5` becomes value(5); `a + b`
 // becomes add(a, b); and so on. The numbers come out identical — we've just
@@ -15,7 +14,7 @@
 // stores the SAME Value object that later expressions reference, the graph
 // connects across statements — so by the time you call grad(f, x), the Value
 // for f still has a path back to the Value for x.
-// =============================================================================
+
 
 import { value, add, sub, mul, div, neg } from "./value.js";
 
@@ -57,7 +56,7 @@ export function evaluate(node, env = createEnv()) {
 
     // `name = value` — reassignment, used for parameter updates like
     // `w = w - lr * gw`. The variable must already exist (use `let` to create).
-    //
+    
     // The crucial detail: we store a BRAND-NEW leaf Value holding just the
     // resulting number, throwing away the graph that produced it. This is the
     // equivalent of PyTorch's `.detach()` / `with no_grad()`. Without it, every
