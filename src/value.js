@@ -1,7 +1,6 @@
-// =============================================================================
+
 // THE AUTODIFF ENGINE  (reverse-mode automatic differentiation)
-// =============================================================================
-//
+
 // This is the heart of Step 3 — and the same idea that powers PyTorch and
 // TensorFlow. The goal: given a formula like  f = x*x*y + y , automatically
 // compute its derivatives  df/dx  and  df/dy  — without you doing any calculus
@@ -20,7 +19,7 @@
 //     y ─────────────┘            +──► f
 //     y ──────────────────────────┘
 //
-// THE TWO PHASES
+// The two phases
 //   1. Forward:  do the arithmetic normally, recording the graph as you go.
 //   2. Backward: start at the output with gradient 1, then walk the graph in
 //      reverse, handing each node its share of the gradient using the chain
@@ -29,7 +28,6 @@
 // Each operation knows its own *local* derivative. The chain rule says: to get
 // how the final output changes with some input, multiply the local derivatives
 // along the path. The backward pass does exactly that multiplication for us.
-// =============================================================================
 
 export class Value {
   // `data` is the actual number. `children` are the Values this one was built
@@ -45,13 +43,13 @@ export class Value {
     this._backward = () => {};
   }
 
-  // ---------------------------------------------------------------------------
+ 
   // The backward pass. Call this on the final output (e.g. f.backward()) to
   // fill in `.grad` on every Value that contributed to it.
-  // ---------------------------------------------------------------------------
+
   backward() {
     // 1. Build a topological order of the graph: every node appears AFTER all
-    //    the nodes that feed into it. We'll then process it in reverse, so a
+    //    the nodes that feed into it. I'll then process it in reverse, so a
     //    node always has its full gradient before it passes any to its inputs.
     const topo = [];
     const visited = new Set();
@@ -88,14 +86,14 @@ export function value(data) {
   return new Value(data);
 }
 
-// -----------------------------------------------------------------------------
-// THE OPERATIONS
+
+// The Operations
 // Each one does the forward computation, builds the result node, and installs a
 // `_backward` that applies that operation's local derivative (the chain rule).
 // We use `+=` when accumulating into a child's grad because the same Value can
 // feed into a result more than once — e.g. x*x uses x twice, and both paths
 // contribute. (That's why df/dx of x*x correctly comes out as 2x.)
-// -----------------------------------------------------------------------------
+
 
 // Addition:  out = a + b.  Local derivatives: d/da = 1, d/db = 1.
 // So each input just receives the output's gradient unchanged.
