@@ -1,8 +1,7 @@
-// =============================================================================
-// THE PARSER
-// =============================================================================
-//
-// The lexer gave us a flat list of tokens. But "12 + 3 * 4" is not flat in
+
+// The Parser
+
+// The lexer gave me a flat list of tokens. But "12 + 3 * 4" is not flat in
 // meaning — multiplication binds tighter than addition, so it really means
 // "12 + (3 * 4)". The parser's job is to turn the flat token list into a TREE
 // (an "Abstract Syntax Tree", or AST) that captures that structure:
@@ -15,7 +14,7 @@
 //
 // The evaluator (next file) will walk this tree to compute the answer.
 //
-// We use a technique called "recursive descent": one function per level of
+// I use a technique called "recursive descent": one function per level of
 // precedence, and the functions call each other. Lower-precedence operators
 // (like +) are handled by the OUTER functions; higher-precedence operators
 // (like *) by the INNER ones. That ordering is exactly what makes * bind
@@ -31,11 +30,11 @@
 // Read the expression/term/factor part top-to-bottom = loosest-to-tightest
 // binding. The program/statement rules on top are the new Step 2 structure:
 // the input is now a *list* of statements, not a single expression.
-// =============================================================================
+
 
 import { TokenType } from "./lexer.js";
 
-// --- AST node constructors -------------------------------------------------
+// AST node constructors 
 // Each node is a plain object with a `type` tag. Keeping them as simple data
 // (no behavior) means the evaluator can decide what to *do* with each node.
 
@@ -78,7 +77,7 @@ function unaryNode(op, operand) {
   return { type: "Unary", op, operand }; // op is "-" (negation)
 }
 
-// --- The parser itself -----------------------------------------------------
+// The parser itself !
 
 export function parse(tokens) {
   let pos = 0; // index of the token we're currently looking at
