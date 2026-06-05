@@ -1,11 +1,11 @@
 
-// THE AUTODIFF ENGINE  (reverse-mode automatic differentiation)
+// The autodiff engine  (reverse-mode automatic differentiation)
 
 // This is the heart of Step 3 — and the same idea that powers PyTorch and
 // TensorFlow. The goal: given a formula like  f = x*x*y + y , automatically
 // compute its derivatives  df/dx  and  df/dy  — without you doing any calculus
 // by hand.
-//
+
 // THE KEY INSIGHT
 // Instead of computing with plain numbers, we compute with little `Value`
 // objects. Each Value remembers not just its number (`data`) but ALSO the
@@ -18,7 +18,7 @@
 //     x ─┘           ×──► (x*x*y) ─┐
 //     y ─────────────┘            +──► f
 //     y ──────────────────────────┘
-//
+
 // The two phases
 //   1. Forward:  do the arithmetic normally, recording the graph as you go.
 //   2. Backward: start at the output with gradient 1, then walk the graph in
