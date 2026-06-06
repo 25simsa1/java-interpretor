@@ -1,7 +1,6 @@
 # tinylang
 
-A small interpreted language, built from scratch in JavaScript — one stage at a
-time. The long-term goal is a usable mini-language with **automatic
+A small interpreted language, built from scratch in JavaScript. The long-term goal is a usable mini-language with **automatic
 differentiation** (the math engine behind machine-learning frameworks like
 PyTorch).
 
